@@ -1,0 +1,82 @@
+SELECT 
+concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(nodeid)
+,'-Orion.CPULoad.AvgLoad;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN      CPULoad>=n.CpuLoadThreshold.Level2Value      THEN 'red' WHEN      CPULoad>=n.CpuLoadThreshold.Level1Value      THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(CPULoad/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(CPULoad)
+,'%  <br>of ',n.cpucount,' cores'
+,'</div>'
+) as [CPU_LOAD]
+
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(nodeid)
+,'-Orion.CPULoad.AvgPercentMemoryUsed;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN  n.percentmemoryused>=n.PercentMemoryUsedThreshold.Level2Value  THEN 'red' WHEN  n.percentmemoryused>=n.PercentMemoryUsedThreshold.Level1Value  THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(n.percentmemoryused/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(n.percentmemoryused)
+,'%   <br>',round(n.MemoryUsed/1024/1024/1024,0),' GB of ',concat(round(n.TotalMemory/1024/1024/1024,0),' GB')
+,'</div>'
+) as [MEM_USED]
+
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(nodeid)
+,'-Orion.ResponseTime.AvgResponseTime;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN      responsetime>=n.ResponseTimeThreshold.Level2Value      THEN 'red' WHEN      responsetime>=n.ResponseTimeThreshold.Level1Value      THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING( round(responsetime/2500,0))
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(responsetime)
+,'ms <br>'
+,'max today: '
+,(SELECT max(MaxResponseTime) as [m] FROM  Orion.ResponseTime   rt  where  rt.nodeid=n.nodeid  and daydiff(tolocal(datetime),getdate())=0)
+,'ms'
+,'</div>'
+) as [Response       Time]
+
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(nodeid)
+,'-Orion.ResponseTime.PercentLoss;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN      percentloss>=n.PercentLossThreshold.Level2Value      THEN 'red' WHEN      percentloss>=n.PercentLossThreshold.Level1Value      THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(percentloss/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(percentloss)
+,'% '
+,'<br>max today: '
+,(SELECT max(PercentLoss) as [p] FROM  Orion.ResponseTime   rt  where  rt.nodeid=n.nodeid  and daydiff(tolocal(rt.datetime),getdate())=0)
+,'%'
+,'</div>'
+) as [Percent       Loss]
+
+FROM      Orion.Nodes    n     
+where      NodeID= ${nodeid}
+
