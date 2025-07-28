@@ -1,0 +1,105 @@
+SELECT
+--h.DisplayName
+concat('<img src="'
+,case when h.VMwareProductName like '%vmware%' then concat('/Orion/StatusIcon.ashx?size=small&entity=Orion.VIM.Hosts.Vmware&status=',h.status)
+       when h.VMwareProductName like '%hyper-v%' then concat('/Orion/StatusIcon.ashx?size=small&entity=Orion.VIM.Hosts.HyperV&status=',h.status)
+end
+,' " width="18" height="18"></>','<a href="',h.DetailsUrl,'">   ',case when length(h.DisplayName)>25 then concat(SUBSTRING(TOUPPER(SUBSTRING (h.DisplayName,1, CASE WHEN CHARINDEX('.',h.DisplayName,1) <=4 THEN LENGTH(h.DisplayName) ELSE (CHARINDEX('.',h.DisplayName,1)-1)  END)),1,25),'...') else TOUPPER(SUBSTRING (h.DisplayName,1, CASE WHEN CHARINDEX('.',h.DisplayName,1) <=4 THEN LENGTH(h.DisplayName) ELSE (CHARINDEX('.',h.DisplayName,1)-1) end )) END,'</>') as [Host]
+
+--,concat(round(h.CpuLoad,0),'% of ',h.CpuCoreCount,' cores') as [CPU]
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'-Orion.CPULoad.AvgLoad;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN h.CPULoad>=h.CpuLoadThreshold.Level2Value THEN 'red' WHEN  h.CPULoad>=h.CpuLoadThreshold.Level1Value      THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(round(h.CPULoad,0)/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(round(h.CPULoad,0))
+,'%  <br>of ',h.CpuCoreCount,' cores'
+,'</div>'
+) as [CPU_LOAD]
+
+--,concat(round(h.MemUsage,0),'% (',round(h.MemUsageMB/1024,0),' GB of ',h.MemorySize/1024/1024/1024,' GB)') as [MEM]
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'-Orion.CPULoad.AvgPercentMemoryUsed;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN h.MemUsage>=h.MemUsageThreshold.Level2Value  THEN 'red' WHEN  h.MemUsage>=h.MemUsageThreshold.Level1Value  THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(round(h.MemUsage,0)/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(round(h.MemUsage,0))
+,'%   <br>',round(h.MemUsageMB/1024,0),' GB of ',concat(round(h.MemorySize/1024/1024/1024,0),' GB')
+,'</div>'
+) as [MEM_USED]
+
+--,concat(round(h.NetworkUtilization,0),' %<br>'
+--,case when h.NetworkUsageRate/1000/1000/1000 >=1 then concat(round(h.NetworkUsageRate/1000/1000/1000,0),' Gbps')
+--      when h.NetworkUsageRate/1000/1000 >=1 then concat(round(h.NetworkUsageRate/1000/1000,0),' Mbps')
+--      when h.NetworkUsageRate/1000 >=1 then concat(round(h.NetworkUsageRate/1000,0),' Kbps')
+--      else concat(round(h.NetworkUsageRate,0),' bps')
+--end
+--,' of ',round(h.networkCapacityKbps/1000/1000,0),' Gbps') as [Net]
+
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'-Orion.CPULoad.AvgPercentMemoryUsed;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN h.MemUsage>=h.MemUsageThreshold.Level2Value  THEN 'red' WHEN  h.MemUsage>=h.MemUsageThreshold.Level1Value  THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(round(h.NetworkUtilization,0)/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(round(h.NetworkUtilization,0))
+,'%   <br>'
+,case when h.NetworkUsageRate/1000/1000/1000 >=1 then concat(round(h.NetworkUsageRate/1000/1000/1000,0),' Gbps')
+      when h.NetworkUsageRate/1000/1000 >=1 then concat(round(h.NetworkUsageRate/1000/1000,0),' Mbps')
+      when h.NetworkUsageRate/1000 >=1 then concat(round(h.NetworkUsageRate/1000,0),' Kbps')
+      else concat(round(h.NetworkUsageRate,0),' bps')
+end
+,' of ',round(h.networkCapacityKbps/1000/1000,0),' Gbps'
+,'</div>'
+) as [NET_USED]
+
+
+--,concat(sum(h.VmRunningCount),' running<br>of ',sum(h.VmCount), ' total') as [VMs] 
+,concat('<div style="display:inline-block">',
+'<a href="/ui/perfstack/?context=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'&withRelationships=true&presetTime=last12Hours&charts=0_Orion.Nodes_'
+,tostring(h.nodeid)
+,'-Orion.CPULoad.AvgPercentMemoryUsed;">'
+,'</>'
+,'<div style="display:inline-block;background-position:center center; background-image: url(/NetPerfMon/images/Bar.Background.gif); background-repeat:repeat-x; text-align: left; width:50px;"><img style="vertical-align:baseline;" src="/NetPerfMon/images/Bar.'
+,(CASE WHEN round(sum(h.VmRunningCount)*100/sum(h.VmCount),3)>=90  THEN 'red' WHEN  round(sum(h.VmRunningCount)*100/sum(h.VmCount),3)>=80   THEN 'yellow' ELSE 'green' END)
+,'.gif" width="'
+,TOSTRING(round(sum(h.VmRunningCount)*100/sum(h.VmCount),3)/2)
+,'px" border="none" height="10px" />'
+,'</div>'
+,'   '+TOSTRING(round(sum(h.VmRunningCount)*100/sum(h.VmCount),3))
+,'%   <br>',sum(h.VmRunningCount),' VMs of ',sum(h.VmCount),' VMs'
+,'</div>'
+) as [VMs_USED]
+
+from orion.vim.hosts h
+
+group by h.nodeid, h.DisplayName, h.hostid, h.cpuload,  h.cpucorecount, h.MemUsage, h.MemUsageMB, h.MemorySize
+, h.NetworkUtilization, h.CpuLoadThreshold.Level2Value, h.CpuLoadThreshold.Level1Value
+, h.MemUsage, h.MemUsageMB, h.MemorySize, h.MemUsageThreshold.Level2Value, h.MemUsageThreshold.Level1Value
+,h.NetworkUtilization, h.NetworkUsageRate, h.networkCapacityKbps
+,h.VMwareProductName, h.status
