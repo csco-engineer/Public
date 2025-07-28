@@ -1,0 +1,75 @@
+SELECT
+a.object
+,a.up
+,a.[_iconfor_Up] as [_iconfor_Up]
+,a.warning
+,a.[_iconfor_warning] as [_iconfor_warning]
+,a.critical
+,a.[_iconfor_critical] as [_iconfor_critical]
+,a.down
+,a.[_iconfor_down] as [_iconfor_down]
+
+from (
+
+
+SELECT
+'VCENTER' as [Object]
+,sum(case when Status=1 then 1 end) as [Up]
+,case when sum(case when Status=1 then 1 end) >0 then '/Orion/images/StatusIcons/Small-up.gif' end as [_iconfor_Up]
+,sum(case when Status=3 then 1 end) as [Warning]
+,case when sum(case when Status=3 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Warning.gif' end as [_iconfor_Warning]
+,sum(case when Status=14 then 1 end) as [Critical]
+,case when sum(case when Status=14 then 1 end) >0 then '/Orion/images/StatusIcons/Small-critical.gif' end as [_iconfor_Critical]
+,sum(case when Status=2 then 1 end) as [DOwn]
+,case when sum(case when Status=2 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Down.gif' end as [_iconfor_DOwn]
+,1 as o
+from orion.vim.VCenters
+
+union all (
+SELECT
+'CLUSTER' as [Object]
+,sum(case when Status=1 then 1 end) as [Up]
+,case when sum(case when Status=1 then 1 end) >0 then '/Orion/images/StatusIcons/Small-up.gif' end as [_iconfor_Up]
+,sum(case when Status=3 then 1 end) as [Warning]
+,case when sum(case when Status=3 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Warning.gif' end as [_iconfor_Warning]
+,sum(case when Status=14 then 1 end) as [Critical]
+,case when sum(case when Status=14 then 1 end) >0 then '/Orion/images/StatusIcons/Small-critical.gif' end as [_iconfor_Critical]
+,sum(case when Status=2 then 1 end) as [DOwn]
+,case when sum(case when Status=2 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Down.gif' end as [_iconfor_DOwn]
+,2 as o
+from orion.vim.Clusters 
+)
+
+union all (
+SELECT
+'HOST' as [Object]
+,sum(case when Status=1 then 1 end) as [Up]
+,case when sum(case when Status=1 then 1 end) >0 then '/Orion/images/StatusIcons/Small-up.gif' end as [_iconfor_Up]
+,sum(case when Status=3 then 1 end) as [Warning]
+,case when sum(case when Status=3 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Warning.gif' end as [_iconfor_Warning]
+,sum(case when Status=14 then 1 end) as [Critical]
+,case when sum(case when Status=14 then 1 end) >0 then '/Orion/images/StatusIcons/Small-critical.gif' end as [_iconfor_Critical]
+,sum(case when Status=2 then 1 end) as [DOwn]
+,case when sum(case when Status=2 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Down.gif' end as [_iconfor_DOwn]
+,3 as o
+from orion.vim.hosts
+)
+
+union all (
+SELECT
+'GUEST' as [Object]
+,sum(case when Status=1 then 1 end) as [Up]
+,case when sum(case when Status=1 then 1 end) >0 then '/Orion/images/StatusIcons/Small-up.gif' end as [_iconfor_Up]
+,sum(case when Status=3 then 1 end) as [Warning]
+,case when sum(case when Status=3 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Warning.gif' end as [_iconfor_Warning]
+,sum(case when Status=14 then 1 end) as [Critical]
+,case when sum(case when Status=14 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Critical.gif' end as [_iconfor_Critical]
+,sum(case when Status=2 then 1 end) as [DOwn]
+,case when sum(case when Status=2 then 1 end) >0 then '/Orion/images/StatusIcons/Small-Down.gif' end as [_iconfor_DOwn]
+,4 as o
+from orion.vim.VirtualMachines
+)
+
+) a
+
+order by a.o
