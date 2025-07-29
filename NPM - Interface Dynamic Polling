@@ -1,0 +1,58 @@
+$ErrorActionPreference = 'SilentlyContinue'
+
+$Cred = Get-Credential ${CREDENTIAL}
+
+$OrionServer = ${IP}
+$NewStatCollection = 1
+$DefaultStatCollection =9
+$NewCount=0
+$DefaultCount=0
+$Failed=0
+$Skipped=0
+
+$swis = Connect-Swis -Hostname $OrionServer -Credential $Cred
+
+$query = "
+select
+ uri
+,interfaceid
+,statcollection
+from orion.NPM.interfaces i
+where i.customproperties.DynamicCollection=1
+"
+
+$Interfaces = Get-SwisData -SwisConnection $swis -Query $query
+
+if (([int](get-date -format HH) -ge 8) -and ([int](get-date -format HH) -le 18)) {
+   foreach ($Interface in $Interfaces)  {
+      if ($interface.statcollection -ne $Newstatcollection) {
+         try {
+            Set-SwisObject -SwisConnection $swis -Uri $Interface.URI -Properties @{ "StatCollection" = $Newstatcollection  }
+            $NewCount++
+         }
+         catch {$Failed++ }
+      }
+      else {$skipped++}
+   } #foreach
+} #if
+else 
+   {foreach ($Interface in $Interfaces) {
+      if ($interface.statcollection -ne $Defaultstatcollection) {
+         try {
+            Set-SwisObject -SwisConnection $swis -Uri $Interface.URI -Properties @{ "StatCollection" = $Defaultstatcollection}
+            $DefaultCount++
+         }
+         catch {$Failed++}
+      }
+      else {$skipped++}
+   } #foreach
+} #else
+
+write-host "Statistic.Poll_Incr: $NewCount"
+write-host "Statistic.Poll_Default: $DefaultCount"
+write-host "Statistic.Poll_Failed: $Failed"
+write-host "Statistic.Poll_Skipped: $Skipped"
+
+exit(0)
+
+
