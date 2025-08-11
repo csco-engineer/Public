@@ -1,0 +1,99 @@
+<!-— NPM - POp Status -->
+<!-- by Amit Shah    -->
+<!-- www.linkedin.com/in/ciscoengineer  -->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>NPM - Volumes - Scatter - Percent Used vs Queue Length</title>
+</head>
+<script>
+function POP(message) {
+    const POPDiv = document.createElement('div');
+    POPDiv.innerHTML = message;
+    POPDiv.classList.add('flash-message');
+    document.body.appendChild(POPDiv);
+    POPDiv.style.position = 'fixed';
+    POPDiv.style.top = '40px';
+    POPDiv.style.left = '50%';
+    POPDiv.style.transform = 'translateX(-50%)';
+    POPDiv.style.padding = '10px 20px';
+    POPDiv.style.borderRadius = '5px';
+    POPDiv.style.zIndex = '1000';
+    POPDiv.style.color = 'black';
+    POPDiv.style.backgroundColor = 'white'
+    setTimeout(() => {
+        POPDiv.remove(); 
+    }, 10000);
+}
+
+var swqlNodeStatusQuick=`
+SELECT
+concat('<img src="/orion/images/statusicons/Small-',n.StatusLED,' " width="30" height="30"></>') as [Node]
+,case when n.CPULoad < 0 then concat('<img src="/Orion/images/StatusIcons/Small-unknown.gif" width="30" height="30"></>','')
+      when n.status in (0,2,9,12) then concat('<img src="/Orion/images/StatusIcons/Small-unknown.gif" width="30" height="30"></>','')
+      when n.CPULoad >= n.CpuLoadThreshold.Level2Value then concat('<img src="/Orion/images/StatusIcons/Small-critical.gif" width="30" height="30"></>',n.cpuload)
+      when n.CPULoad >= n.CpuLoadThreshold.Level1Value then concat('<img src="/Orion/images/StatusIcons/Small-warning.gif" width="30" height="30"></>',n.cpuload)
+      else '<img src="/Orion/images/StatusIcons/Small-up.gif" width="30" height="30"></>'  
+end as [CPU]
+
+,case when n.PercentMemoryUsed < 0 then concat('<img src="/Orion/images/StatusIcons/Small-unknown.gif" width="30" height="30"></>','')
+      when n.status in (0,2,9,12) then concat('<img src="/Orion/images/StatusIcons/Small-unknown.gif" width="30" height="30"></>','')
+      when n.PercentMemoryUsed >= n.PercentMemoryUsedThreshold.Level2Value  then concat('<img src="/Orion/images/StatusIcons/Small-critical.gif" width="30" height="30"></>',n.PercentMemoryUsed)
+      when n.PercentMemoryUsed >= n.PercentMemoryUsedThreshold.Level1Value  then concat('<img src="/Orion/images/StatusIcons/Small-warning.gif" width="30" height="30"></>',n.PercentMemoryUsed)
+      else '<img src="/Orion/images/StatusIcons/Small-up.gif" width="30" height="30"></>' 
+end as [MEM]
+,concat('<img src="/orion/images/statusicons/Small-',vol.c,' " width="30" height="30"></>') as [vol]
+,concat('<img src="/orion/images/statusicons/Small-',app.c,' " width="30" height="30"></>') as [app]
+from Orion.nodes n
+
+left join (
+select top 1
+v.node.nodeid, concat(s.StatusName,'.gif') as [c]
+--,v.PercentDiskUsedThreshold.Level2Value, v.PercentDiskUsedThreshold.Level1Value
+from orion.volumes v
+join orion.StatusInfo s on s.StatusId=v.status
+where v.Node.nodeid=${nodeid}
+order by v.status desc
+) vol on vol.nodeid=n.nodeid
+
+left join (
+select top 1
+a.node.nodeid, concat(s.StatusName,'.gif') as [c]
+--,v.PercentDiskUsedThreshold.Level2Value, v.PercentDiskUsedThreshold.Level1Value
+from orion.APM.Application a
+join orion.StatusInfo s on s.StatusId=a.status
+where a.Node.nodeid=${nodeid}
+order by s.UiOrder asc
+) app on app.nodeid=n.nodeid
+
+where n.nodeid=${nodeid}
+`
+var params = JSON.stringify({ 
+				query: swqlNodeStatusQuick, 
+				parameters: { }
+			}); 
+$.ajax({ 
+    type: 'POST', 
+    url: '/Orion/Services/Information.asmx/QueryWithParameters', 
+    data: params, 
+    contentType: "application/json; charset=utf-8", 
+    dataType: "json", 
+    success: function(dataNodeStatusQuick) { 
+    POP('<table><tr>'+
+        '<th>Node<br>'+ dataNodeStatusQuick.d.Rows[0][0]+'</th>' +
+        '<th>CPU<br>'+ dataNodeStatusQuick.d.Rows[0][1]+'</th>' +
+        '<th>MEM<br>'+ dataNodeStatusQuick.d.Rows[0][2]+'</th>' +
+        '<th>VOL<br>'+ dataNodeStatusQuick.d.Rows[0][3]+'</th>' +
+        '<th>APP<br>'+ dataNodeStatusQuick.d.Rows[0][4]+'</th>' +
+        '</tr></table>')
+	} // success
+}) // ajax
+
+</script> 
+<body>
+</body>
+</html>
+
+
+
