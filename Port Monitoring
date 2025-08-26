@@ -1,0 +1,56 @@
+$AllCOnnections = (Get-NetTCPConnection -ErrorAction SilentlyContinue).count
+$CloseWait=(Get-NetTCPConnection -state closewait -ErrorAction SilentlyContinue).count
+$TimeWait=(Get-NetTCPConnection -state timewait -ErrorAction SilentlyContinue).count 
+
+if ($CloseWait -eq $null) {$CloseWait=0}
+if ($TimeWait -eq $null) {$TimeWait=0}
+
+write-host "Statistic.AllCOnnections: $AllConnections"
+write-host "Statistic.CloseWait: $closewait"
+write-host "Statistic.TimeWait: $TimeWait"
+
+
+$DCOM = Get-winevent system | Where-Object {($_.ProviderName -like "Microsoft-Windows-DistributedCOM") -and ($_.ID -like "10028") -and ($_.TimeCreated -gt (get-date).addMinutes(-10))} 
+$DCOMHash = New-Object "System.Collections.Generic.List[System.Object]"
+foreach ($D in $DCOM) {
+    
+        $DCOMfr    =$D.Message.IndexOf("computer",1)
+        $DCOMto    =$D.message.IndexOf("using")
+        $DCOMip    = ""
+        $DCOMip= $D.message.substring($DCOMfr+9,$DCOMto-$DCOMfr-9)
+        $DCOMhash += $DCOMip -replace '\.$'
+}
+
+if ($DCOM.count -gt 0) {
+                        #write-host "Message.DCOM:  DCOM"
+                        write-host "Statistic.DCOM: $($DCOM.count)"
+                        $DD=$DCOMhash | Group-Object | Sort-Object count -Descending 
+                        $CC=0
+                        if ($DD.Count >=5) {$CC=5} else {$CC=$DD.Count-1}
+                        $C=0
+                        for ($C=0; $C -le $CC)
+                        {
+                        #write-host "Message.DCOM${C}:  " $DD[$C].name.TrimEnd(". ")
+                        write-host "Statistic.DCOM${C}: " $DD[$C].count
+                        $C++
+                        }
+                        if ($DD.Count -le 5) {
+                        for ($C=$DD.Count; $C -le 4)
+                        {
+                        #write-host "Message.DCOM${C}:  none"
+                        write-host "Statistic.DCOM${C}: 0"
+                        $C++
+                        }}
+
+
+                        #$DD=$DCOMhash | Group-Object | Sort-Object count -Descending | format-Table -Property Name,count
+                        }
+else {#write-host "Message.DCOM:  DCOM"
+      write-host "Statistic.DCOM: 0"
+      for ($C=0; $C -le 4) 
+      { #write-host "Message.DCOM${C}:  none"
+        write-host "Statistic.DCOM${C}: 0"
+        $C++
+      }
+      }
+ 
