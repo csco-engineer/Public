@@ -1,0 +1,462 @@
+<!—- NPM Interactive Interface Graphs   -->
+<!-- by Amit Shah    -->
+<!-- www.linkedin.com/in/ciscoengineer  -->
+
+<!DOCTYPE html>
+<head>
+<title> NPM Interactive Interface Graphs </title>
+
+<script src='/orion/charts/js/highstock.js'></script>
+
+<style>
+    #nodeHeader{
+        font-weight:bold;
+        text-align:center;
+        font-size: 5px;
+    }
+    #nodeHeader div{
+        background-color:orange;
+    }
+    .interfacesContainer{
+        float:left;
+    }
+    .interfaceGraph{
+        clear:both;
+        width:50%;
+        max-height:200px;
+    }
+    #interfaceHeader{
+        float:left;
+        font-weight:bold;
+        text-align:center;
+    }
+    #interfaceHeader div{
+        background-color:darkorange;
+    }
+    #interfacesContainer ul{
+        list-style-position: inside;
+    }
+    #interfacesContainer li{
+        width:800 px;
+        clear: both;
+        background-color:darkorange;
+    }
+    li {
+        width:460 px;
+        clear: both;
+    }
+    .interfaceName{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:300px;
+        border:solid 1px;
+    }
+    .interfaceOperStatus{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:75px;
+        border:solid 1px;
+    }
+    .interfaceInPercentUtil{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:100px;
+        border:solid 1px;
+    }
+    .interfaceOutPercentUtil{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:100px;
+        border:solid 1px;
+    }
+    .interfaceInDiscardsToday{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:120px;
+        border:solid 1px;
+    }
+    .interfaceOutDiscardsToday{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:120px;
+        border:solid 1px;
+    }
+    .interfaceInErrorsToday{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:100px;
+        border:solid 1px;
+    }
+    .interfaceOutErrorsToday{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:100px;
+        border:solid 1px;
+    }
+    .nodeName{
+        white-space:nowrap;
+        overflow:hidden;
+        padding: 2px;
+        float:left;
+        width:100px;
+        border:solid 1px;
+    }
+    .nodeLastBoot{
+        padding:2px;
+        float:left;
+        width:400px;
+        border:solid 1px;
+    }
+    .nodeCpuLoad{
+        padding:2px;
+        float:left;
+        width:30px;
+        border:solid 1px;
+    }
+    .nodePercentMemoryUsed {
+        padding:2px;
+        float:left;
+        width:30px;
+        border:solid 1px;
+    }
+    .interfacesContainer {
+        float:none;
+        clear:both;
+    }
+</style>
+
+<select id="selectRouter" onchange="updateView()">
+    <option value="">ALL</option>
+    <option value="changeme">changeme</option>
+</select>
+<input type="text" id="searchString" value="" oninput="updateView()">
+
+<script>
+    //$( document ).ready(function() {
+function updateView() {
+    var x = document.getElementById("selectRouter").value;
+    var searchString = document.getElementById("searchString").value;
+    var queryString=` SELECT distinct I.Node.NodeID, I.Node.Caption 
+    ,concat('Total: ',(select count(*) as [c] from orion.npm.interfaces ii where ii.nodeid=I.node.nodeid)
+,'  up: '
+,(select count(*) as [c] from orion.npm.interfaces ii where ii.nodeid=I.node.nodeid and ii.Status=1)
+,' dn:'
+,(select count(*) as [c] from orion.npm.interfaces ii where ii.nodeid=I.node.nodeid and ii.Status=2)
+,'  warn: '
+,(select count(*) as [c] from orion.npm.interfaces ii where ii.nodeid=I.node.nodeid and ii.Status=3)
+,' crit:'
+,(select count(*) as [c] from orion.npm.interfaces ii where ii.nodeid=I.node.nodeid and ii.Status=14)
+) as [LastBoot]
+    , I.CPULoad, I.PercentMemoryUsed 
+    FROM Orion.NodesStats I 
+    where I.Node.Caption like '%` + x + `%'  
+    and I.Node.Interfaces.Caption like '%` + searchString + `%'
+    and i.node.vendor like '%cisco%'
+    order by Caption ` ; 
+    if(nodes[0]==null){
+        nodes.push(new Node(0,'no results'));
+        var queryString=" SELECT NodeID, Caption FROM Orion.NodesStats where Caption like '%%' order by Caption " ;   
+        solarWinds(nodes[0].nodeUpdate, queryString )
+        updateView();
+    }
+    solarWinds(nodes[0].nodeUpdate, queryString)
+}
+
+var nodes=[];
+var nodeList=[];
+function Node(nodeId, nodeName, lastBoot, cpuLoad, percentMemoryUsed,nodeIndex) {
+    this.nodeId = nodeId;
+    this.nodeName = nodeName;
+    this.lastBoot=lastBoot;
+    this.cpuLoad=cpuLoad;
+    this.percentMemoryUsed=percentMemoryUsed;
+    this.nodeIndex=nodeIndex;
+}
+
+function Interface(interfaceIndex,interfaceId, operStatus,caption, inPercentUtil, outPercentUtil, inn, outt){
+    this.interfaceIndex=interfaceIndex;
+    this.interfaceId=interfaceId;
+    this.operStatus=operStatus;
+    this.caption=caption;
+    this.inPercentUtil=inPercentUtil;
+    this.outPercentUtil=outPercentUtil;
+    this.in=inn;
+    this.out=outt;
+    
+
+}
+
+Interface.prototype.interfaceUpdate=function(x){
+    var queryString="SELECT I.Node.NodeName, I.InterfaceId, I.Caption, concat(year(tolocal(I.Traffic.DateTime)),'-', case when length(month(tolocal(I.Traffic.DateTime)))=1 then concat('0',month(tolocal(I.Traffic.DateTime))) else concat(month(tolocal(I.Traffic.DateTime)),'') end,'-',case when length(day(tolocal(I.Traffic.DateTime)))=1 then concat('0',day(tolocal(I.Traffic.DateTime))) else concat(day(tolocal(I.Traffic.DateTime)),'') end,' ',case when length(hour(tolocal(I.Traffic.DateTime)))=1 then concat('0',hour(tolocal(I.Traffic.DateTime))) else concat(hour(tolocal(I.Traffic.DateTime)),'') end,':',case when length(minute(tolocal(I.Traffic.DateTime)))=1 then concat('0',minute(tolocal(I.Traffic.DateTime))) else concat(minute(tolocal(I.Traffic.DateTime)),'') end,':',case when length(second(tolocal(I.Traffic.DateTime)))=1 then concat('0',second(tolocal(I.Traffic.DateTime))) else concat(second(tolocal(I.Traffic.DateTime)),'') end) as [DateTime], I.Traffic.InMaxbps, I.Traffic.OutMaxbps FROM Orion.NPM.Interfaces I where I.InterfaceId = " + this.interfaceId + " and daydiff(tolocal(I.Traffic.DateTime),getdate())<=7 order by I.Traffic.DateTime asc" ;   
+    solarWinds(this.interfaceGraph, queryString);
+}
+
+Interface.prototype.interfaceGraph=function(response){
+    ///start graph
+    function bytes(bytes, label) {
+    if (bytes == 0) return '';
+    var s = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    var e = Math.floor(Math.log(bytes)/Math.log(1024));
+    var value = ((bytes/Math.pow(1024, Math.floor(e))).toFixed(0));
+    e = (e<0) ? (-e) : e;
+    if (label) value += ' ' + s[e];
+    return value;
+    }
+
+    function graph(){
+        id=interfaces.length-1;
+        //begin highchart
+        console.log('Before muChart');
+        console.log(series1[id])
+        var myChart=Highcharts.stockChart('interfaceGraph' + current, {
+            chart:{ zoomType : false,
+                    backgroundColor: '#F6F6F6',
+                    height: 200,
+            },
+            xAxis: {
+                type: 'datetime',
+                range: 24 * 3600 * 1000,
+            },
+            yAxis: {
+                min:0, 
+                max: null,
+                tickInterval: 10,
+                alignTicks: false,
+                opposite: false,
+                labels: {
+                    style: { fontSize: '7px' },
+                    formatter: function() { return bytes(this.value, true); }
+                },
+
+            },
+            legend: {
+                enabled: false,
+                itemStyle: {
+                font: '8pt Trebuchet MS, Verdana, sans-serif',
+                },
+                margin: -1,
+            },
+            navigation: {
+                buttonOptions: {  enabled: false  },
+            },
+            credits: {  enabled: false  },
+            navigator: { //enabled: false
+                height: 20,
+                margin: 2,
+                xAxis : { labels: { enabled: false} },
+            },
+            rangeSelector: {  enabled: false},
+            plotOptions: {
+                    area: {
+                        fillColor: {
+                            linearGradient: {
+                                x1: 0,
+                                y1: 0,
+                                x2: 0,
+                                y2: 1
+                            },
+                            stops: [
+                                [0, Highcharts.getOptions().colors[0]],
+                                [1, Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
+                            ]
+                        },
+                        marker: {
+                            radius: 2
+                        },
+                        lineWidth: 1,
+                        states: {
+                            hover: {
+                                lineWidth: 1
+                            }
+                        },
+                        threshold: null
+                    }
+                },
+
+            series: [{
+                type: 'line',
+                name: 'OutMaxBps',
+                data: series1[id],
+                turboThreshold: 10000,
+                showInLegend: true,
+                dataGrouping: {enabled : false,},
+            },
+            {
+                type: 'line',
+                name: 'InMaxBps',
+                data: series0[id],
+                turboThreshold: 10000,
+                showInLegend: true,
+                dataGrouping: {enabled : false,},
+            }
+           ]
+            }); // end myChart
+    } // end function graph
+    var i;
+    var interfaces=[];
+    var nodes=[];
+    var captions=[];
+    var series0=[];
+    var series1=[];
+    var current=[];
+    var index=[];
+
+    for (i = 0; i < response.d.Rows.length; i++) {
+    if (current!="" && current!=response.d.Rows[i][1]){
+        graph();
+        current=response.d.Rows[i][1];
+        }
+        else{current=response.d.Rows[i][1];}
+        //console.log(current);
+        let index=interfaces.indexOf(response.d.Rows[i][1]);
+        console.log("index=" + index);
+
+        if (index ==-1) {
+        interfaces.push(response.d.Rows[i][1]);
+        nodes.push(response.d.Rows[i][0]);
+        captions.push(response.d.Rows[i][2]);
+        series0.push(new Array([new Date(response.d.Rows[i][3]).getTime() ,response.d.Rows[i][4]]));
+        series1.push(new Array([new Date(response.d.Rows[i][3]).getTime() ,response.d.Rows[i][5]]))
+        index=0;
+        }  //close if
+        else{
+        series0[index].push(new Array(new Date(response.d.Rows[i][3]).getTime() ,response.d.Rows[i][4]));
+        series1[index].push(new Array(new Date(response.d.Rows[i][3]).getTime() ,response.d.Rows[i][5]));
+        }//close else
+
+    }//close loop
+    console.log(series0);
+    graph();
+} // end Interface.prototype.interfaceGraph
+
+Node.prototype.interfaceList=function(response){
+    var interfacesContainer="<div id='interfacesContainer'>  <li><div><div id='interfaceHeader' class='interfaceList'><div id='interfaceHeaderName' class='interfaceName'> Interface </div><div id='interfaceHeaderOperStatus' class='interfaceOperStatus'>operStatus</div><div id='interfaceHeaderinPercentUtil' class='interfaceInPercentUtil'>IN</div><div id='interfaceHeaderOutPercentUtil' class='interfaceOutPercentUtil'>OUT</div></div></div></li>";
+    this.interfaces=[];
+    console.log('Response *************'); console.log(response);
+    for(var x=0; x<response.d.Rows.length; x++){
+        interfaceIndex=x;
+        interfaceId=response.d.Rows[x][0];
+        operStatus=response.d.Rows[x][1];
+        caption=response.d.Rows[x][2];
+        //inPercentUtil=response.d.Rows[x][3];
+        //outPercentUtil=response.d.Rows[x][4];
+        inPercentUtil=response.d.Rows[x][9];
+        outPercentUtil=response.d.Rows[x][10];
+        this.interfaces.push(new Interface(interfaceIndex,interfaceId, operStatus,caption, inPercentUtil, outPercentUtil));
+        interfacesContainer=interfacesContainer + " <li onclick='nodes[" + this.nodeIndex + "].interfaces[" + x + "].interfaceUpdate(" + this.nodeIndex + ")'><div><div id='interface" + interfaceId+ "Name' class='interfaceName'>" +  caption + "</div><div id='interface" + interfaceId + "OperStatus' class='interfaceOperStatus'>" + operStatus + "</div><div id='interface" + interfaceId + "inPercentUtil' class='interfaceInPercentUtil'>" + inPercentUtil+ "</div><div id='interface" + interfaceId + "OutPercentUtil' class='interfaceOutPercentUtil'>" + outPercentUtil + "</div>" + "</div></li><div id='interfaceGraph" + interfaceId + "' class='interfaceGraph'></div>";
+    }
+interfacesContainer=interfacesContainer + "</div>";
+var testing="node" + this.nodeId + "interfacesContainer";
+document.getElementById("node" + this.nodeId + "interfacesContainer").innerHTML = interfacesContainer;
+} // end Node.prototype.interfaceList
+
+Node.prototype.interfaceUpdate=function(){
+    if(this.interfaces != null){
+        this.interfaces=null;
+        document.getElementById("node" + this.nodeId + "interfacesContainer").innerHTML = "";
+        }
+    else {
+        var searchString = document.getElementById("searchString").value;
+        var queryString=`SELECT
+        InterfaceID, statusdescription as [OperStatus],Caption
+        ,InPercentUtil, OutPercentUtil
+        ,InDiscardsToday, OutDiscardsToday
+        ,InErrorsToday, OutErrorsToday
+        ,concat(InPercentUtil,'% ('
+        ,case when  round(Inbps/1024/1024/1024,1)>=1.0  then concat(round(Inbps/1024/1024/1024,1), ' Gb') 
+              when  round(Inbps/1024/1024,1)>=1.0       then concat(round(Inbps/1024/1024,1), ' Mb') 
+              when  round(Inbps/1024,1)>=1.0            then concat(round(Inbps/1024,1), ' Kb') 
+              else concat(round(InBps,0), ' bps')
+        end
+        ,')'
+        )
+        as [inn]
+        ,concat(OutPercentUtil,'% ('
+        ,case when  Outbps/1024/1024/1024>=1  then concat(round(Outbps/1024/1024/1024,1), ' Gb') 
+              when  Outbps/1024/1024>=1       then concat(round(Outbps/1024/1024,1), ' Mb') 
+              when  Outbps/1024>=1            then concat(round(Outbps/1024,1), ' Kb') 
+              else concat(round(OutBps,0), ' bps')
+        end
+        ,')'
+        )
+        as [outt]
+        FROM Orion.NPM.Interfaces where NodeId =` + this.nodeId + `
+        and Caption like '%` + searchString+ `%'
+        order by Caption`; 
+        solarWinds(nodes[this.nodeIndex].interfaceList.bind(nodes[this.nodeIndex]), queryString)
+    }
+} // end Node.prototype.interfaceUpdate
+
+Node.prototype.nodeUpdate=function(response){
+    nodeList=[];
+    nodes=[];
+    var nodesContainer="<div id='nodesContainer'> <ul> <li><div><div id='nodeHeader' class='nodeList'> <div id='nodeHeaderName' class='nodeName'>Node</div> <div id='nodeHeaderlastBoot' class='nodeLastBoot'>Interfaces</div><div id='nodeHeaderCpuLoad' class='nodeCpuLoad'>Cpu</div><div id='nodeHeaderPercentMemoryUsed' class='nodePercentMemoryUsed'>Mem</div></div></div></li>";
+    for(var x=0; x<response.d.Rows.length; x++){
+        var nodeId=response.d.Rows[x][0];
+        var nodeName=response.d.Rows[x][1];
+        var lastBoot=response.d.Rows[x][2];
+        //if (lastBoot != null){
+        //    lastBoot=new Date(Number(lastBoot.slice(6,19)));
+        //    }
+        var cpuLoad=response.d.Rows[x][3];
+        var percentMemoryUsed=response.d.Rows[x][4];
+        nodeIndex=x;
+        nodeList.push(nodeId);
+        nodes.push(new Node(nodeId, nodeName,lastBoot,cpuLoad,percentMemoryUsed,nodeIndex));
+        nodesContainer=nodesContainer + " <li onclick='nodes[" + x + "].interfaceUpdate()'><div><div id='node" + nodeId +"container' class='nodeList'> <div id='node" + nodeId + "name' class='nodeName'>" + nodeName + "</div> <div id='node" + nodeId + "lastBoot' class='nodeLastBoot'>" + lastBoot + "</div><div id='node" + nodeId + "cpuLoad' class='nodeCpuLoad'>" + cpuLoad+ "</div><div id='node" + percentMemoryUsed + "name' class='nodePercentMemoryUsed'>" + percentMemoryUsed + "</div> </div></div></li><div id='node" + nodeId + "interfacesContainer' class='interfacesContainer'></div> ";
+    } //end for
+    nodesContainer=nodesContainer + "</ul> </div>";
+    document.getElementById("nodes").innerHTML = nodesContainer;
+}; // end Node.prototype.nodeUpdate
+
+var results=[];
+var swql=[];
+
+function solarWinds(a, queryString){
+    swql=queryString;
+    var params = JSON.stringify({
+            query: swql,
+            parameters: { }
+    });
+    $.ajax({
+        type: 'POST', 
+        url: '/Orion/Services/Information.asmx/QueryWithParameters', 
+        data: params, 
+        contentType: "application/json; charset=utf-8", 
+        dataType: "json", 
+        success: function(response) {
+            a(response);
+    } //closing tag of function resulting from ajax query
+    })   //end ajax query
+} //end swql function
+
+nodes.push(new Node(0,'no results'));
+
+var queryString=" SELECT NodeID, Caption FROM Orion.NodesStats where Caption like '%%' order by Caption " ;   
+solarWinds(nodes[0].nodeUpdate, queryString )
+updateView();
+
+//});
+
+</script>
+
+<div id="nodes"></div>
+
+
+
